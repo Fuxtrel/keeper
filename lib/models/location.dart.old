@@ -1,0 +1,27 @@
+class Location {
+  String? session;
+  String? transactionToken;
+  String? proxyIp;
+  int? proxyPort;
+
+  Location({
+    this.session,
+    this.transactionToken,
+    this.proxyIp,
+    this.proxyPort,
+  });
+
+  factory Location.fromJson(Map<String, dynamic> json) => Location(
+        session: json['session'] as String?,
+        transactionToken: json['transactionToken'] as String?,
+        proxyIp: json['proxyIP'] as String?,
+        proxyPort: json['proxyPORT'] as int?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'session': session,
+        'transactionToken': transactionToken,
+        'proxyIP': proxyIp,
+        'proxyPORT': proxyPort,
+      };
+}

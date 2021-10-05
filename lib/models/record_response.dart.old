@@ -1,0 +1,52 @@
+import 'package:flutter/foundation.dart';
+
+import 'part.dart';
+
+class RecordResponse {
+  String? id;
+  String? name;
+  List<Part>? parts;
+
+  RecordResponse({this.id, this.name, this.parts});
+
+  @override
+  String toString() => 'RecordResponse(id: $id, name: $name, parts: $parts)';
+
+  factory RecordResponse.fromJson(Map<String, dynamic> json) => RecordResponse(
+        id: json['id'] as String?,
+        name: json['name'] as String?,
+        parts: (json['parts'] as List<dynamic>?)
+            ?.map((e) => Part.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'parts': parts?.map((e) => e.toJson()).toList(),
+      };
+
+  RecordResponse copyWith({
+    String? id,
+    String? name,
+    List<Part>? parts,
+  }) {
+    return RecordResponse(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      parts: parts ?? this.parts,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(other, this)) return true;
+    return other is RecordResponse &&
+        listEquals(other.parts, parts) &&
+        other.id == id &&
+        other.name == name;
+  }
+
+  @override
+  int get hashCode => id.hashCode ^ name.hashCode ^ parts.hashCode;
+}

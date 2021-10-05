@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:keeper/cpp_native.dart';
+import '../lib/cpp_native.dart';
 
 void main(List<String> arguments) {
   startListen();

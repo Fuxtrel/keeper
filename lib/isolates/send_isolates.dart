@@ -1,12 +1,8 @@
 part of cpp_native;
 
-
-
-
-
 const int MB = 15 * (1024 * 1024);
-const int MAXSIZE = 15 * 100 * 1024 * 1024;
-const int MINSIZE = 50 * 1024;
+const int MAXSIZE = 15 * 100 * 1024 * 1024; // 15
+const int MINSIZE = 15 * 1024; // 15
 const int MAXPART = 100;
 const int MINPART = 5;
 
@@ -429,9 +425,11 @@ void _sendPart(SendPort sendPort) {
                 Map<String, dynamic>.from(json.decode(socketMessage));
             if (decodeJson.containsKey("keepAlive") &&
                 decodeJson["keepAlive"].toString().isNotEmpty) {
-              channel.sink.add(json.encode({
-                'keepAlive': 'keepAlive',
-              }));
+              try {
+                channel.sink.add(json.encode({
+                  'keepAlive': 'keepAlive',
+                }));
+              } catch (e) {}
             } else if (decodeJson.containsKey('Ready_for_send')) {
               print('Ready_for_send');
               // var hash =  message.partFile.hashCode;
@@ -446,10 +444,9 @@ void _sendPart(SendPort sendPort) {
               };
               channel.sink.add(query.toString());
               // sleep(Duration(milliseconds: 1));
-              channel.sink.add(encryptedData);
+              // channel.sink.add(encryptedData);
               // encryptedData = null;
-            }
-            if (decodeJson.containsKey('result') &&
+            } else if (decodeJson.containsKey('result') &&
                 decodeJson['result'] == 'Transmission OK!') {
               print("Transmission OK!");
               part.state = PartState.sended;
@@ -462,9 +459,11 @@ void _sendPart(SendPort sendPort) {
                   hash: part.partHash);
               channel.sink.close();
               sendPort.send(res);
-            }
-
-            if (socketMessage == 'Transmission not OK!') {
+            } else if (decodeJson.containsKey('fileData') &&
+                decodeJson['fileData'] == 'ok') {
+              channel.sink.add(encryptedData);
+            } else if (decodeJson.containsKey('result') &&
+                decodeJson['result'] == 'Transmission not OK!') {
               print("Transmission not OK!");
               part.state = PartState.notSended;
               SendPartResult res = SendPartResult(
@@ -474,6 +473,9 @@ void _sendPart(SendPort sendPort) {
                   hash: 'error');
               channel.sink.close();
               sendPort.send(res);
+            } else {
+              print('all checks failed');
+              print(socketMessage);
             }
           }
         });

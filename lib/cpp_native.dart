@@ -7,6 +7,7 @@ import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 import 'dart:developer' as developer;
+import 'package:keeper/file_tipification/file_typification.dart';
 import 'package:keeper/database/database.dart';
 import 'package:keeper/database/database_models.dart';
 import 'package:keeper/file_proc/encryption.dart';
@@ -17,17 +18,18 @@ import 'package:keeper/models/part.dart';
 import 'package:dio/dio.dart';
 import 'package:image/image.dart';
 import 'package:web_socket_channel/io.dart';
-import 'package:pointycastle/export.dart';
+import "package:pointycastle/export.dart";
 import 'package:cryptography/cryptography.dart';
 import 'json_root/json_root.dart';
-import 'file_tipification/file_typification.dart';
+
+
 part 'isolates/send_isolates.dart';
 part 'models.dart';
 part 'isolates/recieve_isolates.dart';
 part 'isolates/download_isolates.dart';
 
 class CppNative {
-  /* static Future<String?> get platformVersion async {
+  /*static Future<String?> get platformVersion async {
     final String? version = await _channel.invokeMethod('getPlatformVersion');
     return version;
   }*/
@@ -52,8 +54,7 @@ class CppNative {
         _closeIsolate(sendIsolate, sendRecievePort);
       }
       if (message is SendPort) {
-        // var documentsFolder = await getApplicationSupportDirectory();
-        var documentsFolder = '/home/alex/Documents';
+        var documentsFolder = '../files';
 
         var data = SendData(
             documentsFolderPath: documentsFolder,
@@ -66,8 +67,8 @@ class CppNative {
     });
   }
 
-  void receiver(String keeperId, String token) async {
-    var documentsFolder = '/home/alex/Documents';
+  Future<void> receiver(String keeperId, String token) async {
+    var documentsFolder = '../files';
 
     Isolate receiver = await Isolate.spawn(_receive,
         [documentsFolder, keeperId, token]); // documentsFolder.path, '' );
@@ -76,5 +77,29 @@ class CppNative {
   _closeIsolate(Isolate? isolate, ReceivePort? port) {
     isolate?.kill(priority: Isolate.immediate);
     port?.close();
+  }
+
+  Future<void> downloadFile(
+      {required String recordID,
+      required String bearerToken,
+      required Function(File) callback}) async {
+    var documentsFolder = '../files';
+    ReceivePort port = ReceivePort();
+    Isolate isolate = await Isolate.spawn(_download, port.sendPort);
+    DownloadOption options = DownloadOption(
+      bearerToken: bearerToken,
+      recordID: recordID,
+      pathToDir: Directory('../files'),
+    );
+
+    port.listen((message) {
+      if (message is SendPort) {
+        message.send(options);
+      }
+      if (message is File) {
+        callback(message);
+        _closeIsolate(isolate, port);
+      }
+    });
   }
 }

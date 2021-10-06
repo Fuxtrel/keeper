@@ -85,7 +85,7 @@ void _receive(List<String> params) async {
         print(e);
       }
     }
-  });
+  }).onDone(() {return;});
 }
 
 class _FilenameHashJson {
@@ -132,20 +132,24 @@ void _partRecieve(SendPort sendPort) {
           final algorithm = Sha1();
           var hash = await algorithm.hash(file);
           // print (file);
-          // print(
-          //     'hash from sender ${jsonValue!['hash']} hash from file =  $hash');
-          // print(
-          //     'Hashes match: ${fileInfoJson?.hash.toString() == hash.bytes.toString()}');
+
+          print('Hashes match: ${fileInfoJson?.hash.toString() == hash.bytes.toString()}');
 
           if (fileInfoJson?.hash.toString() == hash.bytes.toString()) {
+            print('Transmission OK!');
             developer.log('hashes on keeper side matches');
             channel.sink.add(json.encode({'result': 'Transmission OK!'}));
-            channel.sink.close();
             var name = fileInfoJson?.filename;
             File newFile = File(message.path + '/' + name!);
             newFile.createSync(recursive: true);
             newFile.writeAsBytesSync(file);
-            sendPort.send(message.token);
+            // channel.sink.close();
+            // sendPort.send(message.token);
+          } else {
+            print('Transmission not OK!');
+            channel.sink.add(json.encode({'result': 'Transmission not OK!'}));
+            // channel.sink.close();
+            // sendPort.send(message.token);
           }
         }
         if (socketMessage is String) {
@@ -159,11 +163,16 @@ void _partRecieve(SendPort sendPort) {
                 'keepAlive': 'keepAlive',
               }));
             } catch (e) {}
-          } else if (isReady) {
+          } else if (decodeJson.containsKey("done") &&
+              decodeJson["done"].toString().isNotEmpty) {
+            channel.sink.close();
+            sendPort.send(message.token);
+          } else if (decodeJson.containsKey('filename')) {
             print(socketMessage);
             fileInfoJson = _FilenameHashJson.fromJson(decodeJson);
-          }
-          if (decodeJson.containsKey('Ready_for_send')) {
+            channel.sink.add(json.encode({'fileData': 'ok'}));
+          } else if (decodeJson.containsKey('Ready_for_send')) {
+            print('RECIVER Ready for send');
             isReady = true;
           }
         }

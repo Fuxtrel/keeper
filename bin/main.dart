@@ -1,5 +1,6 @@
 import 'dart:async';
 import '../lib/cpp_native.dart';
+import 'dart:io';
 
 
 
@@ -9,8 +10,14 @@ void main(List<String> arguments) async {
 }
 
 Future<void> startListen() async {
+  File file_kid = File('./keeper_id.txt');
+  File file_bt = File('./bearer_token.txt');
+  String keeper_id = '';
+  String bearer_token = '';
+  keeper_id = file_kid.readAsStringSync();
+  bearer_token = file_bt.readAsStringSync();
   CppNative cpp = CppNative();
   await cpp.receiver(
-      '615181c28f1f5a686a9151f5',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjYwYWFjMDQzNzkzNDUzNzUxYWI4NGNiYSIsImlhdCI6MTYzMzUwNTQ1MCwiZXhwIjoxNjM0MTEwMjUwfQ.P6teoJt6-ShjafsYKfIbW8YtQfPu3XOGdaSLUf4d8nY');
+      keeper_id,
+      bearer_token);
 }

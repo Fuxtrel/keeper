@@ -69,9 +69,20 @@ class CppNative {
 
   Future<void> receiver(String keeperId, String token) async {
     var documentsFolder = '../files';
+    var receivePort = ReceivePort();
+    Isolate receiver = await Isolate.spawn(_receive, receivePort.sendPort);
+    SendPort? sendPort;
+    receivePort.listen((message) {
+      if (message is SendPort) {
+        sendPort = message;
+        sendPort?.send([documentsFolder, keeperId, token]);
+      } else if (message is bool) {
+        if (!message) {
+          sendPort?.send([documentsFolder, keeperId, token]);
+        }
+      }
+    });
 
-    Isolate receiver = await Isolate.spawn(_receive,
-        [documentsFolder, keeperId, token]); // documentsFolder.path, '' );
   }
 
   _closeIsolate(Isolate? isolate, ReceivePort? port) {

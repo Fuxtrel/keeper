@@ -5,7 +5,7 @@ import 'dart:io';
 
 
 void main(List<String> arguments) async {
-  void variable = await startListen();
+  await startListen();
   while(true){}
 }
 

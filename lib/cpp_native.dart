@@ -13,8 +13,8 @@ import 'package:keeper/database/database_models.dart';
 import 'package:keeper/file_proc/encryption.dart';
 import 'package:keeper/models/download_dir.dart';
 import 'package:keeper/models/download_response.dart';
-import 'package:keeper/models/record_responce.dart';
 import 'package:keeper/models/part.dart';
+import 'package:keeper/models/record_response.dart.old';
 import 'package:dio/dio.dart';
 import 'package:image/image.dart';
 import 'package:web_socket_channel/io.dart';
@@ -22,18 +22,12 @@ import "package:pointycastle/export.dart";
 import 'package:cryptography/cryptography.dart';
 import 'json_root/json_root.dart';
 
-
 part 'isolates/send_isolates.dart';
 part 'models.dart';
 part 'isolates/recieve_isolates.dart';
 part 'isolates/download_isolates.dart';
 
 class CppNative {
-  /*static Future<String?> get platformVersion async {
-    final String? version = await _channel.invokeMethod('getPlatformVersion');
-    return version;
-  }*/
-
   Isolate? sendIsolate;
   ReceivePort? sendRecievePort;
 
@@ -54,7 +48,7 @@ class CppNative {
         _closeIsolate(sendIsolate, sendRecievePort);
       }
       if (message is SendPort) {
-        var documentsFolder = '../files';
+        var documentsFolder = './';
 
         var data = SendData(
             documentsFolderPath: documentsFolder,
@@ -67,22 +61,11 @@ class CppNative {
     });
   }
 
-  Future<void> receiver(String keeperId, String token) async {
-    var documentsFolder = '../files';
-    var receivePort = ReceivePort();
-    Isolate receiver = await Isolate.spawn(_receive, receivePort.sendPort);
-    SendPort? sendPort;
-    receivePort.listen((message) {
-      if (message is SendPort) {
-        sendPort = message;
-        sendPort?.send([documentsFolder, keeperId, token]);
-      } else if (message is bool) {
-        if (!message) {
-          sendPort?.send([documentsFolder, keeperId, token]);
-        }
-      }
-    });
+  void receiver(String keeperId, String token) async {
+    var documentsFolder = './';
 
+    Isolate receiver = await Isolate.spawn(_receive,
+        [documentsFolder, keeperId, token]); // documentsFolder.path, '' );
   }
 
   _closeIsolate(Isolate? isolate, ReceivePort? port) {
@@ -94,13 +77,13 @@ class CppNative {
       {required String recordID,
       required String bearerToken,
       required Function(File) callback}) async {
-    var documentsFolder = '../files';
+    var documentsFolder = './';
     ReceivePort port = ReceivePort();
     Isolate isolate = await Isolate.spawn(_download, port.sendPort);
     DownloadOption options = DownloadOption(
       bearerToken: bearerToken,
       recordID: recordID,
-      pathToDir: Directory('../files'),
+      pathToDir: Directory('./'),
     );
 
     port.listen((message) {

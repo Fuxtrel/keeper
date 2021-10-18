@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'models/list_equal.dart';
 
 import 'part.dart';
 

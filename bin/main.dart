@@ -1,5 +1,5 @@
 import 'dart:async';
-import '../lib/cpp_native.dart';
+import 'package:keeper/cpp_native.dart';
 import 'dart:io';
 
 
@@ -17,7 +17,7 @@ Future<void> startListen() async {
   keeper_id = file_kid.readAsStringSync();
   bearer_token = file_bt.readAsStringSync();
   CppNative cpp = CppNative();
-  await cpp.receiver(
+  cpp.receiver(
       keeper_id,
       bearer_token);
 }

@@ -1,8 +1,8 @@
 part of cpp_native;
 
 const int MB = 15 * (1024 * 1024);
-const int MAXSIZE = 15 * 100 * 1024 * 1024; // 15
-const int MINSIZE = 15 * 1024; // 15
+const int MAXSIZE = 15 * 100 * 1024 * 1024;
+const int MINSIZE = 50 * 1024;
 const int MAXPART = 100;
 const int MINPART = 5;
 
@@ -19,14 +19,13 @@ void _send(SendPort firstSendPort) {
           recordID: '0');
       Database.path = sendMessage.documentsFolderPath;
       Database db = await Database.getInstanse();
-
       try {
         var pair = generateRSAkeyPair(exampleSecureRandom());
         var fRecordResponce = _createRecord(file, sendMessage.bearerToken,
             sendMessage.folderId, sendMessage.documentsFolderPath);
         List<Uint8List> parts = [];
         var fParts = _splitFile(file: file, fileInfo: fileInfo);
-        RecordResponce? recordResponse;
+        RecordResponse? recordResponse;
 
         fParts.then((value) => parts = value);
         fRecordResponce.then((value) {
@@ -56,35 +55,27 @@ void _send(SendPort firstSendPort) {
               print(jsonEncode(query));
             });
           });
-          // print('Added queries');
-
+          print('Added queries');
           int? maxLocations = recordResponse?.parts?.first.locations!.length;
           int? maxParts = recordResponse?.parts?.length;
           channel.sink.add(queries.first);
-
           channel.stream.listen((event) {
             if (event is String) {
-              Map<String, dynamic> response = json.decode(event);
-              if (response.containsKey("keeper_state_online")) {
-                throw Exception('keeper_state_online: false');
+              var response = json.decode(event);
+              recordResponse?.parts?[iterY].locations![iterX].proxyIp =
+                  response['ip'] as String;
+              recordResponse?.parts?[iterY].locations![iterX].proxyPort =
+                  response['port'] as int;
+              if (iterX < maxLocations! - 1) {
+                iterX++;
+                channel.sink.add(queries[iterY * maxLocations + iterX]);
               } else {
-                // String transactionToken = response['transaction token'];
-
-                recordResponse?.parts?[iterY].locations![iterX].proxyIp =
-                    response['ip'] as String;
-                recordResponse?.parts?[iterY].locations![iterX].proxyPort =
-                    response['port'] as int;
-                if (iterX < maxLocations! - 1) {
-                  iterX++;
+                iterX = 0;
+                iterY++;
+                if (iterY != maxParts) {
                   channel.sink.add(queries[iterY * maxLocations + iterX]);
                 } else {
-                  iterX = 0;
-                  iterY++;
-                  if (iterY != maxParts) {
-                    channel.sink.add(queries[iterY * maxLocations + iterX]);
-                  } else {
-                    channel.sink.close();
-                  }
+                  channel.sink.close();
                 }
               }
             }
@@ -114,13 +105,6 @@ void _send(SendPort firstSendPort) {
             controller.manageIsolate();
           });
         });
-
-        //location.proxyIp = response['ip'] as String;
-        //location.proxyPort = response['port'] as int;
-
-        //part = null;
-        //print(parts.first.toString());
-
       } catch (e) {
         print(e);
         db.writeData(fileInfo.recordID, fileInfo);
@@ -188,6 +172,7 @@ Future<List<Uint8List>> _splitFile(
       }
     }
   }
+
   return parts;
 }
 
@@ -258,25 +243,27 @@ Future<String?> uploadProfilePic(
     );
     if (resFileCreate.statusCode == 200) {
       var uploadUrl = resFileCreate.data['uploadCredentials']['url'];
-      FormData formData = new FormData.fromMap({
+      FormData formData = FormData.fromMap({
         "filename": file.path.split('/').last,
         "file": await MultipartFile.fromFile(
             documentsFolderPath + '/thumbnail_${file.path.split('/').last}'),
       });
       var resPublicUrl = await Dio().post(uploadUrl, data: formData);
       print(resPublicUrl);
-      if (resPublicUrl.statusCode == 200)
+      if (resPublicUrl.statusCode == 200) {
         return resPublicUrl.data as String;
-      else
+      } else {
         throw Exception('Upload profile pic ended with problem');
-    } else
+      }
+    } else {
       throw Exception('Creation file on server ended with problem');
+    }
   } catch (e) {
     print(e);
   }
 }
 
-Future<RecordResponce?> _createRecord(File file, String bearerToken,
+Future<RecordResponse?> _createRecord(File file, String bearerToken,
     String? folderId, String documentsFolderPath) async {
   int numOfParts = _numOfParts(file);
   var query = {};
@@ -285,14 +272,11 @@ Future<RecordResponce?> _createRecord(File file, String bearerToken,
     String file_type =
         SortByExtension().getFilesType(file.path.split('/').last);
     if (file_type == 'image') {
-      if (folderId == null) {
-        folderId = await getFotoVideoId(bearerToken, 'Photo');
-      }
+      folderId ??= await getFotoVideoId(bearerToken, 'Photo');
       query = {
         "data": {
           "name": "${file.path.split('/').last}",
-          "folder":
-              folderId /* ?? await getFotoVideoId(bearerToken, 'Photo')*/, // если подавать null, то файл создаётся в корень
+          "folder": folderId,
           "numOfParts": numOfParts,
           "thumbnail": [
             {
@@ -310,9 +294,7 @@ Future<RecordResponce?> _createRecord(File file, String bearerToken,
         }
       };
     } else if (file_type == 'video') {
-      if (folderId == null) {
-        folderId = await getFotoVideoId(bearerToken, 'Video');
-      }
+      folderId ??= await getFotoVideoId(bearerToken, 'Video');
       query = {
         "data": {
           "name": "${file.path.split('/').last}",
@@ -364,7 +346,7 @@ Future<RecordResponce?> _createRecord(File file, String bearerToken,
         headers: {'Authorization': ' Bearer $bearerToken'},
       ),
     );
-    RecordResponce recResponce = RecordResponce.fromJson(response.data);
+    RecordResponse recResponce = RecordResponse.fromJson(response.data);
 
     print(response);
     return recResponce;
@@ -380,7 +362,7 @@ Future<RecordResponce?> _createRecord(File file, String bearerToken,
           headers: {'Authorization': ' Bearer $bearerToken'},
         ),
       );
-      RecordResponce recResponce = RecordResponce.fromJson(response.data);
+      RecordResponse recResponce = RecordResponse.fromJson(response.data);
       print(response.data);
       return recResponce;
     } catch (e) {
@@ -408,10 +390,7 @@ void _sendPart(SendPort sendPort) {
             rsaEncrypt(message.publicKey, message.partFile);
         developer.log('parts successfully ecnrypted');
         part.state = PartState.encrypted;
-        IOWebSocketChannel channel = IOWebSocketChannel.connect(
-            'ws://${message.storeds.locations!.first.proxyIp}:${message.storeds.locations!.first.proxyPort}');
-        //  final channel = IOWebSocketChannel.connect(
-        //     'ws://95.216.228.24:${message.storeds.first.proxyPORT}');
+        IOWebSocketChannel channel = IOWebSocketChannel.connect('ws://${message.storeds.locations!.first.proxyIp}:${message.storeds.locations!.first.proxyPort}');
         var query = {
           '"Transaction token"':
               '"${message.storeds.locations!.first.transactionToken}"',
@@ -423,35 +402,22 @@ void _sendPart(SendPort sendPort) {
           if (socketMessage is String) {
             var decodeJson =
                 Map<String, dynamic>.from(json.decode(socketMessage));
-            if (decodeJson.containsKey("keepAlive") &&
-                decodeJson["keepAlive"].toString().isNotEmpty) {
-              try {
-                channel.sink.add(json.encode({
-                  'keepAlive': 'keepAlive',
-                }));
-              } catch (e) {}
-            } else if (decodeJson.containsKey('Ready_for_send')) {
-              print('Ready_for_send');
-              // var hash =  message.partFile.hashCode;
+            if (decodeJson.containsKey('Ready_for_send')) {
               final algorithm = Sha1();
               var hash = await algorithm.hash(encryptedData);
               part.partHash = hash.bytes.toString();
               var query = {
-                '"filename"':
-                    '"${message.storeds.locations!.first.transactionToken}"',
+                '"filename"': '"${message.storeds.locations!.first.transactionToken}"',
                 '"hash"': '${hash.bytes}',
                 '"Init"': '"True"',
               };
               channel.sink.add(query.toString());
-              // sleep(Duration(milliseconds: 1));
-              // channel.sink.add(encryptedData);
-              // encryptedData = null;
-            } else if (decodeJson.containsKey('result') &&
+              channel.sink.add(encryptedData);
+            }
+            if (decodeJson.containsKey('result') &&
                 decodeJson['result'] == 'Transmission OK!') {
               print("Transmission OK!");
               part.state = PartState.sended;
-              // await _setHash(message.bearerToken,
-              //     message.storeds.locations!.first.location!, part.partHash);
               SendPartResult res = SendPartResult(
                   index: message.index,
                   part: part,
@@ -459,11 +425,9 @@ void _sendPart(SendPort sendPort) {
                   hash: part.partHash);
               channel.sink.close();
               sendPort.send(res);
-            } else if (decodeJson.containsKey('fileData') &&
-                decodeJson['fileData'] == 'ok') {
-              channel.sink.add(encryptedData);
-            } else if (decodeJson.containsKey('result') &&
-                decodeJson['result'] == 'Transmission not OK!') {
+            }
+
+            if (socketMessage == 'Transmission not OK!') {
               print("Transmission not OK!");
               part.state = PartState.notSended;
               SendPartResult res = SendPartResult(
@@ -473,9 +437,6 @@ void _sendPart(SendPort sendPort) {
                   hash: 'error');
               channel.sink.close();
               sendPort.send(res);
-            } else {
-              print('all checks failed');
-              print(socketMessage);
             }
           }
         });
@@ -506,7 +467,6 @@ Future<void> _setHash(String bearerToken, List<LocationHash> list) async {
       ),
     );
     print(response.data);
-    //RecordResponse recResponce = RecordResponse.fromJson(response.data);
   } catch (e) {
     print(e);
     try {
@@ -519,7 +479,6 @@ Future<void> _setHash(String bearerToken, List<LocationHash> list) async {
           headers: {'Authorization': ' Bearer $bearerToken'},
         ),
       );
-      //RecordResponse recResponce = RecordResponse.fromJson(response.data);
     } catch (e) {
       print(e);
       return null;
@@ -531,7 +490,7 @@ class SendPartIsolateController {
   List<SendPartInfoWithState> parts;
   int aliveIsolatesCount = 0;
   final AsymmetricKeyPair<RSAPublicKey, RSAPrivateKey> pair;
-  final RecordResponce recordResponce;
+  final RecordResponse recordResponce;
   final SendData sendMessage;
   DBFileInfo fileInfo;
   Function(DBFileInfo) writeToDB;
@@ -545,7 +504,7 @@ class SendPartIsolateController {
       required this.writeToDB});
 
   Future<dynamic> manageIsolate() async {
-    // print('launching manageisolate');
+    print('launching manageisolate');
     List<LocationHash> hashes = [];
     int numOfActualThreads = 1;
     if (numOfThreads > parts.length) {
@@ -553,8 +512,6 @@ class SendPartIsolateController {
     } else {
       numOfActualThreads = numOfThreads;
     }
-    print('numOfActualThreads = $numOfActualThreads');
-    print('num of parts = ${parts.length}');
     for (int i = 0; i < numOfActualThreads; i++) {
       aliveIsolatesCount++;
       ReceivePort port = ReceivePort();
@@ -605,8 +562,6 @@ class SendPartIsolateController {
               } else {
                 writeToDB(fileInfo);
               }
-
-              // return manageIsolate(null);
             }
 
             isolate.kill();

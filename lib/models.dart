@@ -1,7 +1,7 @@
 part of cpp_native;
 
 const String tenantID = "608c0906cb5fb91ccf8bf5a5";
-const int numOfThreads = 5;
+const int numOfThreads = 10;
 
 class SendData {
   final String documentsFolderPath;

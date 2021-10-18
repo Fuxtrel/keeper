@@ -1,5 +1,6 @@
 part of cpp_native;
 
+
 void _download(SendPort firstPort) {
   try {
     ReceivePort isolateRecievePort = ReceivePort();
@@ -41,23 +42,16 @@ void _download(SendPort firstPort) {
         channel.stream.listen((event) {
           if (event is String) {
             var jsonFromProxy = json.decode(event);
-            if (jsonFromProxy.containsKey("keepAlive") &&
-                jsonFromProxy["keepAlive"].toString().isNotEmpty) {
-              channel.sink.add(json.encode({
-                'keepAlive': 'keepAlive',
-              }));
-            } else {
-              response.downloadDirs?[iter].proxyIp =
-                  jsonFromProxy['ip'] as String;
-              response.downloadDirs?[iter].proxyPort =
-                  jsonFromProxy['port'] as int;
+            response.downloadDirs?[iter].proxyIp =
+                jsonFromProxy['ip'] as String;
+            response.downloadDirs?[iter].proxyPort =
+                jsonFromProxy['port'] as int;
 
-              iter++;
-              if (iter < queries.length) {
-                channel.sink.add(queries[iter]);
-              } else {
-                channel.sink.close();
-              }
+            iter++;
+            if (iter < queries.length) {
+              channel.sink.add(queries[iter]);
+            } else {
+              channel.sink.close();
             }
           }
         }).onDone(() {
@@ -141,12 +135,6 @@ void _downloadPart(SendPort sendPort) async {
         channel.stream.listen((socketMessage) async {
           if (socketMessage is String) {
             Map<String, dynamic> decodeJson = json.decode(socketMessage);
-            if (decodeJson.containsKey("keepAlive") &&
-                decodeJson["keepAlive"].toString().isNotEmpty) {
-              channel.sink.add(json.encode({
-                'keepAlive': 'keepAlive',
-              }));
-            }
             if (decodeJson['Ready_for_send'] == 'Ready_for_send') {
               query = {'"filename"': '"${message.uploadTransactionToken}"'};
               channel.sink.add(query.toString());
